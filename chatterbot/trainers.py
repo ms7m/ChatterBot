@@ -7,6 +7,8 @@ from chatterbot.conversation import Statement
 from chatterbot.tagging import PosLemmaTagger
 from chatterbot import utils
 
+import uuid
+from pymongo import MongoClient
 
 class Trainer(object):
     """
@@ -26,6 +28,17 @@ class Trainer(object):
             'show_training_progress',
             environment_default
         )
+
+        self._does_user_want_mongo = kwargs.get("save_progress_to_mongo", False)
+        self._current_discord_server = kwargs.get("discord_server_id", "0")
+
+        if self._does_user_want_mongo != False:
+            self.mongo_client = MongoClient()
+            self.database = self.mongo_client.progress[self._current_discord_server]
+        else:
+            self.mongo_client = None
+            self.database = None
+
 
     def get_preprocessed_statement(self, input_statement):
         """
@@ -91,11 +104,26 @@ class ListTrainer(Trainer):
         statements_to_create = []
 
         for conversation_count, text in enumerate(conversation):
-            if self.show_training_progress:
+
+            if self._does_user_want_mongo:
+                if not self.database.find({"guildId": self._current_discord_server}):
+                    self.database.insert_one({
+                        "guildId": self._current_discord_server,
+                        "conversationalTrainingNumber": 0,
+                    })
+
+                self.database.find_one_and_update(
+                    {"guildId": self._current_discord_server},
+                    {"$inc": {"conversationalTrainingNumber": 1}}
+                )
+
+            if self.show_training_progress and self._does_user_want_mongo == False:
                 utils.print_progress_bar(
                     'List Trainer',
                     conversation_count + 1, len(conversation)
                 )
+
+            
 
             statement_search_text = self.chatbot.storage.tagger.get_text_index_string(text)
 

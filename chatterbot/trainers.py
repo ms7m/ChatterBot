@@ -102,9 +102,8 @@ class ListTrainer(Trainer):
         previous_statement_search_text = ''
 
         statements_to_create = []
-
+        self._current_count = 0
         for conversation_count, text in enumerate(conversation):
-
             if self._does_user_want_mongo:
                 if not self.database.find({"guildId": self._current_discord_server}):
                     self.database.insert_one({
@@ -137,6 +136,7 @@ class ListTrainer(Trainer):
                 )
             )
 
+            self._current_count += 1
             previous_statement_text = statement.text
             previous_statement_search_text = statement_search_text
 
